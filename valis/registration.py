@@ -2609,15 +2609,17 @@ class Valis(object):
 
         # First, downscale any images that exceed max_image_dim_px
         for slide_obj in self.slide_dict.values():
-            img_max_dim = max(slide_obj.image.shape[0:2])
+            img_shape_rc = slide_obj.image.shape[0:2]
+            img_max_dim = max(img_shape_rc)
             if img_max_dim > self.max_image_dim_px:
                 scaling = self.max_image_dim_px / img_max_dim
                 slide_obj.image = warp_tools.rescale_img(slide_obj.image, scaling)
+                new_shape_rc = slide_obj.image.shape[0:2]
+                msg = f"Image {slide_obj.name} downscaled from {img_shape_rc} to {new_shape_rc} to fit max_image_dim_px={self.max_image_dim_px}"
+                valtils.print_warning(msg)
 
         # Now find the maximum dimensions after downscaling
         og_img_sizes_wh = np.array([slide_obj.image.shape[0:2][::-1] for slide_obj in self.slide_dict.values()])
-        img_max_dims = og_img_sizes_wh.max(axis=1)
-        max_max_wh = img_max_dims.max()  # Maximum of the maximum dimensions
         
         # Get the actual maximum width and height across all images
         max_h = og_img_sizes_wh[:, 1].max()  # Maximum height
