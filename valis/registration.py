@@ -106,7 +106,9 @@ NON_RIGID_USE_XY_KEY = "moving_to_fixed_xy"
 NON_RIGID_COMPOSE_KEY = "compose_transforms"
 
 # Default non-rigid registration parameters #
-DEFAULT_NON_RIGID_CLASS = non_rigid_registrars.OpticalFlowWarper()
+# Use RAFTWarper as default for better GPU acceleration
+# Falls back to CPU if GPU is not available
+DEFAULT_NON_RIGID_CLASS = non_rigid_registrars.RAFTWarper()
 DEFAULT_NON_RIGID_KWARGS = {}
 
 # Cropping options
