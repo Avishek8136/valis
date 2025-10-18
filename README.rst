@@ -83,6 +83,64 @@ VALIS automatically uses GPU acceleration when available to significantly speed 
 If no GPU is detected, VALIS automatically falls back to CPU processing. You can also force CPU usage by passing ``force_cpu=True`` to registration classes if needed.
 
 
+Quick Start: Registration Script
+----------------------------------
+
+A ready-to-use registration script is provided for registering HE and CD8 qptiff files::
+
+    python valis.py HE.qptiff CD8.qptiff
+
+This script:
+
+* Automatically downsamples the HE file by 2x to match CD8 magnification
+* Uses CD8 channel 0 (DAPI) as the reference for coregistration
+* Leverages GPU acceleration for optimal performance (tested with L40 GPU)
+* Saves registered slides in ome.tiff format
+
+**Usage:**
+
+.. code-block:: bash
+
+    # Basic usage
+    python valis.py HE.qptiff CD8.qptiff
+
+    # Specify custom output directories
+    python valis.py HE.qptiff CD8.qptiff --output ./results --registered-output ./registered
+
+    # Force CPU usage (disable GPU)
+    python valis.py HE.qptiff CD8.qptiff --no-gpu
+
+**Arguments:**
+
+* ``he_file``: Path to HE.qptiff file (moving image, will be downsampled 2x)
+* ``cd8_file``: Path to CD8.qptiff file (reference image with DAPI channel)
+* ``--output``, ``-o``: Output directory for registration results (default: ./valis_results)
+* ``--registered-output``, ``-r``: Output directory for registered slides (default: ./valis_registered)
+* ``--no-gpu``: Force CPU usage instead of GPU
+
+**Requirements:**
+
+* NVIDIA GPU with CUDA support (recommended: L40 or equivalent)
+* PyTorch with CUDA support
+* All VALIS dependencies installed
+
+**Output:**
+
+The script generates two output directories:
+
+1. Registration results directory (``./valis_results`` by default):
+   
+   * ``processed/``: Processed/normalized images used for registration
+   * ``rigid_registration/``: Thumbnails after rigid registration
+   * ``non_rigid_registration/``: Thumbnails after non-rigid registration
+   * ``overlaps/``: Visual comparison of registration quality
+   * ``data/``: Registration statistics and pickled registrar object
+
+2. Registered slides directory (``./valis_registered`` by default):
+   
+   * Full-resolution registered slides in ome.tiff format
+
+
 Full documentation with installation instructions and examples can be found at `ReadTheDocs <https://valis.readthedocs.io/en/latest/>`_.
 
 
