@@ -1600,12 +1600,19 @@ class Valis(object):
 
     max_image_dim_px : int
         Maximum width or height of images that will be saved.
-        This limit is mostly to keep memory in check.
+        This limit is mostly to keep memory in check. Whether images
+        exceeding this limit are downscaled is controlled by the
+        `allow_downsample` parameter.
 
     max_processed_image_dim_px : int
         Maximum width or height of processed images. An important
         parameter, as it determines the size of of the image in which
         features will be detected and displacement fields computed.
+
+    allow_downsample : bool
+        Whether to allow downsampling of images that exceed `max_image_dim_px`.
+        If False (default), images will not be downscaled. If True, images
+        exceeding `max_image_dim_px` will be downscaled.
 
     reference_img_f : str
         Filename of image that will be treated as the center of the stack.
