@@ -2601,26 +2601,41 @@ class Valis(object):
     def check_img_max_dims(self):
         """Ensure that all images have similar sizes.
 
-        `max_image_dim_px` will be set to the maximum dimension of the
-        smallest image if that value is less than max_image_dim_px
+        First applies downscaling to images that exceed max_image_dim_px.
+        Then pads smaller images to match the maximum dimensions of the largest image
+        to prevent information loss.
 
         """
 
+        # First, downscale any images that exceed max_image_dim_px
+        for slide_obj in self.slide_dict.values():
+            img_max_dim = max(slide_obj.image.shape[0:2])
+            if img_max_dim > self.max_image_dim_px:
+                scaling = self.max_image_dim_px / img_max_dim
+                slide_obj.image = warp_tools.rescale_img(slide_obj.image, scaling)
+
+        # Now find the maximum dimensions after downscaling
         og_img_sizes_wh = np.array([slide_obj.image.shape[0:2][::-1] for slide_obj in self.slide_dict.values()])
         img_max_dims = og_img_sizes_wh.max(axis=1)
-        min_max_wh = img_max_dims.min()
-        scaling_for_og_imgs = min_max_wh/img_max_dims
+        max_max_wh = img_max_dims.max()  # Maximum of the maximum dimensions
+        
+        # Get the actual maximum width and height across all images
+        max_h = og_img_sizes_wh[:, 1].max()  # Maximum height
+        max_w = og_img_sizes_wh[:, 0].max()  # Maximum width
+        target_shape_rc = (max_h, max_w)
+        
+        # Pad smaller images to match the maximum dimensions
+        for slide_obj in self.slide_dict.values():
+            img_shape_rc = slide_obj.image.shape[0:2]
+            if img_shape_rc[0] < max_h or img_shape_rc[1] < max_w:
+                # Image needs padding
+                padded_img, padding_T = warp_tools.pad_img(slide_obj.image, target_shape_rc)
+                slide_obj.image = padded_img
+                msg = f"Image {slide_obj.name} padded from {img_shape_rc} to {target_shape_rc} to match larger images"
+                valtils.print_warning(msg)
 
-        if np.any(scaling_for_og_imgs < 1):
-            msg = f"Smallest image is less than max_image_dim_px. parameter max_image_dim_px is being set to {min_max_wh}"
-            valtils.print_warning(msg)
-            self.max_image_dim_px = min_max_wh
-            for slide_obj in self.slide_dict.values():
-                # Rescale images
-                scaling = self.max_image_dim_px/max(slide_obj.image.shape[0:2])
-                assert scaling <= self.max_image_dim_px
-                if scaling < 1:
-                    slide_obj.image = warp_tools.rescale_img(slide_obj.image, scaling)
+        # Update max_image_dim_px to reflect the actual maximum dimension after processing
+        self.max_image_dim_px = max(target_shape_rc)
 
         if self.max_processed_image_dim_px > self.max_image_dim_px:
             msg = f"parameter max_processed_image_dim_px also being updated to {self.max_image_dim_px}"
