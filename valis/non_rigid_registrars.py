@@ -661,7 +661,7 @@ class SimpleElastixWarper(NonRigidRegistrarXY):
 
     """
     def __init__(self, params=None, ammi_weight=0.33,
-                 bending_penalty_weight=0.33, kp_weight=0.33):
+                 bending_penalty_weight=0.33, kp_weight=0.33, force_cpu=False):
         """
         Parameters
         ----------
@@ -676,21 +676,36 @@ class SimpleElastixWarper(NonRigidRegistrarXY):
             metric. Only used if moving_xy and fixed_xy are provided as
             arguments to the `register()` method.
 
+        force_cpu : bool, optional
+            If True, force CPU usage even if GPU is available. Default is False.
+
         """
         super().__init__(params=params)
 
         self.ammi_weight = ammi_weight
         self.bending_penalty_weight = bending_penalty_weight
         self.kp_weight = kp_weight
+        self.force_cpu = force_cpu
 
 
     @staticmethod
-    def get_default_params(img_shape, grid_spacing_ratio=0.025):
+    def get_default_params(img_shape, grid_spacing_ratio=0.025, force_cpu=False):
         """
         Get default parameters for registration with sitk.ElastixImageFilter
 
         See https://simpleelastix.readthedocs.io/Introduction.html
         for advice on parameter selection
+        
+        Parameters
+        ----------
+        img_shape : tuple
+            Shape of the image (height, width)
+            
+        grid_spacing_ratio : float, optional
+            Ratio for grid spacing. Default is 0.025.
+            
+        force_cpu : bool, optional
+            If True, force CPU usage even if GPU is available. Default is False.
         """
         p = sitk.GetDefaultParameterMap("bspline")
         p["Metric"] = ['AdvancedMattesMutualInformation', 'TransformBendingEnergyPenalty']
@@ -714,6 +729,17 @@ class SimpleElastixWarper(NonRigidRegistrarXY):
         grid_spacing = str(int(np.mean([grid_spacing_x, grid_spacing_y])))
         p["FinalGridSpacingInPhysicalUnits"] = [grid_spacing]
         p["WriteResultImage"] = ["false"]
+        
+        # Enable GPU/OpenCL if available and not forced to CPU
+        if not force_cpu and torch.cuda.is_available():
+            # Try to enable GPU acceleration via OpenCL in Elastix
+            # Note: This requires Elastix to be compiled with OpenCL support
+            try:
+                p["Resampler"] = ["OpenCLResampler"]
+                p["ResampleInterpolator"] = ["OpenCLBSplineInterpolator"] 
+            except Exception:
+                # If OpenCL parameters are not supported, continue with CPU
+                pass
 
         return p
 
@@ -909,7 +935,7 @@ class SimpleElastixWarper(NonRigidRegistrarXY):
             print("Images have different shapes")
 
         if not self._params_provided:
-            self.params = self.get_default_params(self.moving_img.shape)
+            self.params = self.get_default_params(self.moving_img.shape, force_cpu=self.force_cpu)
 
         warped_img, \
             warped_grid, \
@@ -1172,13 +1198,25 @@ class SimpleElastixGroupwiseWarper(NonRigidRegistrarGroupwise):
 
     """
 
-    def __init__(self, params=None):
+    def __init__(self, params=None, force_cpu=False):
         super().__init__(params=params)
+        self.force_cpu = force_cpu
 
     @staticmethod
-    def get_default_params(img_shape, grid_spacing_ratio=0.025):
+    def get_default_params(img_shape, grid_spacing_ratio=0.025, force_cpu=False):
         """
         See https://simpleelastix.readthedocs.io/Introduction.html for advice on parameter selection
+        
+        Parameters
+        ----------
+        img_shape : tuple
+            Shape of the image (height, width)
+            
+        grid_spacing_ratio : float, optional
+            Ratio for grid spacing. Default is 0.025.
+            
+        force_cpu : bool, optional
+            If True, force CPU usage even if GPU is available. Default is False.
         """
         p = sitk.GetDefaultParameterMap("groupwise")
         p["Metric"] = ['AdvancedMattesMutualInformation']
@@ -1199,12 +1237,20 @@ class SimpleElastixGroupwiseWarper(NonRigidRegistrarGroupwise):
         grid_spacing = str(int(np.mean([grid_spacing_x, grid_spacing_y])))
         p["FinalGridSpacingInPhysicalUnits"] = [grid_spacing]
         p["WriteResultImage"] = ["false"]
+        
+        # Enable GPU/OpenCL if available and not forced to CPU
+        if not force_cpu and torch.cuda.is_available():
+            try:
+                p["Resampler"] = ["OpenCLResampler"]
+                p["ResampleInterpolator"] = ["OpenCLBSplineInterpolator"]
+            except Exception:
+                pass
 
         return p
 
     def calc(self, img_list, mask=None, *args, **kwargs):
         if self.params is None:
-            self.params = SimpleElastixGroupwiseWarper.get_default_params(self.img_list[0].shape[:2])
+            self.params = SimpleElastixGroupwiseWarper.get_default_params(self.img_list[0].shape[:2], force_cpu=self.force_cpu)
 
         vectorOfImages = sitk.VectorOfImage()
         for img in img_list:

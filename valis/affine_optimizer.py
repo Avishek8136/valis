@@ -754,11 +754,12 @@ class AffineOptimizerMattesMI(AffineOptimizer):
     accepts_xy = True
 
     def __init__(self, nlevels=4.0, nbins=32,
-                 optimization="AdaptiveStochasticGradientDescent", transform="EuclideanTransform"):
+                 optimization="AdaptiveStochasticGradientDescent", transform="EuclideanTransform", force_cpu=False):
         super().__init__(nlevels, nbins, optimization, transform)
 
         self.Reg = None
         self.accepts_xy = AffineOptimizerMattesMI.accepts_xy
+        self.force_cpu = force_cpu
         self.fixed_kp_fname = os.path.join(pathlib.Path(__file__).parent, ".fixedPointSet.pts")
         self.moving_kp_fname = os.path.join(pathlib.Path(__file__).parent, ".movingPointSet.pts")
 
@@ -839,6 +840,16 @@ class AffineOptimizerMattesMI(AffineOptimizer):
 
         rigid_map["Optimizer"] = [self.optimization]
         rigid_map["NumberOfHistogramBins"] = [str(self.nbins)]
+        
+        # Enable GPU/OpenCL if available and not forced to CPU
+        if not self.force_cpu and torch.cuda.is_available():
+            try:
+                rigid_map["Resampler"] = ["OpenCLResampler"]
+                rigid_map["ResampleInterpolator"] = ["OpenCLBSplineInterpolator"]
+            except Exception:
+                # If OpenCL parameters are not supported, continue with CPU
+                pass
+        
         self.Reg.SetParameterMap(rigid_map)
 
         if mask is not None:

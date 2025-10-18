@@ -226,3 +226,35 @@ def get_ncpus_available():
 
     return int(ncpus)
 
+
+def is_gpu_available():
+    """Check if GPU is available for computation
+    
+    Returns
+    -------
+    bool
+        True if GPU (CUDA) is available, False otherwise
+    """
+    try:
+        return torch.cuda.is_available()
+    except Exception:
+        return False
+
+
+def get_device(force_cpu=False):
+    """Get the device to use for computation
+    
+    Parameters
+    ----------
+    force_cpu : bool, optional
+        If True, force CPU usage even if GPU is available. Default is False.
+    
+    Returns
+    -------
+    str
+        'cuda' if GPU is available and not forced to CPU, 'cpu' otherwise
+    """
+    if force_cpu:
+        return 'cpu'
+    return 'cuda' if is_gpu_available() else 'cpu'
+
