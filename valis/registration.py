@@ -1600,12 +1600,19 @@ class Valis(object):
 
     max_image_dim_px : int
         Maximum width or height of images that will be saved.
-        This limit is mostly to keep memory in check.
+        This limit is mostly to keep memory in check. Whether images
+        exceeding this limit are downscaled is controlled by the
+        `allow_downsample` parameter.
 
     max_processed_image_dim_px : int
         Maximum width or height of processed images. An important
         parameter, as it determines the size of of the image in which
         features will be detected and displacement fields computed.
+
+    allow_downsample : bool
+        Whether to allow downsampling of images that exceed `max_image_dim_px`.
+        If False (default), images will not be downscaled. If True, images
+        exceeding `max_image_dim_px` will be downscaled.
 
     reference_img_f : str
         Filename of image that will be treated as the center of the stack.
@@ -1789,6 +1796,7 @@ class Valis(object):
                  norm_method=DEFAULT_NORM_METHOD,
                  micro_rigid_registrar_cls=None,
                  micro_rigid_registrar_params={},
+                 allow_downsample=False,
                  qt_emitter=None):
 
         """
@@ -2003,6 +2011,13 @@ class Valis(object):
         micro_rigid_registrar_params : dictionary
             Dictionary of keyword arguments used intialize the `MicroRigidRegistrar`
 
+        allow_downsample : bool, optional
+            Whether to allow downsampling of images that exceed `max_image_dim_px`.
+            If False (default), images will not be downscaled and dimension matching
+            via padding will be used instead to ensure all images have similar sizes.
+            If True, images exceeding `max_image_dim_px` will be downscaled before
+            padding is applied.
+
         qt_emitter : PySide2.QtCore.Signal, optional
             Used to emit signals that update the GUI's progress bars
 
@@ -2091,6 +2106,7 @@ class Valis(object):
         self.max_image_dim_px = max_image_dim_px
         self.max_processed_image_dim_px = max_processed_image_dim_px
         self.max_non_rigid_registration_dim_px = max_non_rigid_registration_dim_px
+        self.allow_downsample = allow_downsample
 
         # Setup rigid registration #
         self.reference_img_idx = None
@@ -2601,24 +2617,25 @@ class Valis(object):
     def check_img_max_dims(self):
         """Ensure that all images have similar sizes.
 
-        First applies downscaling to images that exceed max_image_dim_px.
+        If allow_downsample is True, first applies downscaling to images that exceed max_image_dim_px.
         Then pads smaller images to match the maximum dimensions of the largest image
         to prevent information loss.
 
         """
 
-        # First, downscale any images that exceed max_image_dim_px
-        for slide_obj in self.slide_dict.values():
-            img_shape_rc = slide_obj.image.shape[0:2]
-            img_max_dim = max(img_shape_rc)
-            if img_max_dim > self.max_image_dim_px:
-                scaling = self.max_image_dim_px / img_max_dim
-                slide_obj.image = warp_tools.rescale_img(slide_obj.image, scaling)
-                new_shape_rc = slide_obj.image.shape[0:2]
-                msg = f"Image {slide_obj.name} downscaled from {img_shape_rc} to {new_shape_rc} to fit max_image_dim_px={self.max_image_dim_px}"
-                valtils.print_warning(msg)
+        # First, downscale any images that exceed max_image_dim_px (if allowed)
+        if self.allow_downsample:
+            for slide_obj in self.slide_dict.values():
+                img_shape_rc = slide_obj.image.shape[0:2]
+                img_max_dim = max(img_shape_rc)
+                if img_max_dim > self.max_image_dim_px:
+                    scaling = self.max_image_dim_px / img_max_dim
+                    slide_obj.image = warp_tools.rescale_img(slide_obj.image, scaling)
+                    new_shape_rc = slide_obj.image.shape[0:2]
+                    msg = f"Image {slide_obj.name} downscaled from {img_shape_rc} to {new_shape_rc} to fit max_image_dim_px={self.max_image_dim_px}"
+                    valtils.print_warning(msg)
 
-        # Now find the maximum dimensions after downscaling
+        # Now find the maximum dimensions after downscaling (or without downscaling)
         og_img_sizes_wh = np.array([slide_obj.image.shape[0:2][::-1] for slide_obj in self.slide_dict.values()])
         
         # Get the actual maximum width and height across all images
