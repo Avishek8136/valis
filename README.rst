@@ -71,6 +71,17 @@ The transformations found by VALIS can then be used to warp the full resolution 
 
 In addition to registering images, VALIS provides tools to read slides using Bio-Formats and OpenSlide, which can be read at multiple resolutions and converted to numpy arrays or pyvips.Image objects. One can also slice regions of interest from these slides and warp annotated images. VALIS also provides functions to convert slides to the ome.tiff format, preserving the original metadata. Please see examples and documentation for more details.
 
+GPU Acceleration
+----------------
+
+VALIS automatically uses GPU acceleration when available to significantly speed up registration:
+
+* **Feature detection and matching**: Uses GPU-accelerated deep learning models (DISK, DeDoDe, LightGlue) via PyTorch
+* **Non-rigid registration**: Default RAFTWarper uses GPU via PyTorch for optical flow computation
+* **SimpleElastix registration**: Attempts to use GPU/OpenCL when available (requires Elastix compiled with OpenCL support)
+
+If no GPU is detected, VALIS automatically falls back to CPU processing. You can also force CPU usage by passing ``force_cpu=True`` to registration classes if needed.
+
 
 Full documentation with installation instructions and examples can be found at `ReadTheDocs <https://valis.readthedocs.io/en/latest/>`_.
 
