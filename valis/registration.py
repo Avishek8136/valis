@@ -2571,6 +2571,12 @@ class Valis(object):
         self.size = 0
         for f in tqdm.tqdm(self.original_img_list, desc=CONVERT_MSG, unit="image"):
             slide_name = valtils.get_name(f)
+            
+            # Skip slides that failed to load a reader
+            if slide_name not in named_reader_dict:
+                valtils.print_warning(f"'{slide_name}'")
+                continue
+            
             reader = named_reader_dict[slide_name]
             slide_dims = reader.metadata.slide_dimensions
             levels_in_range = np.where(slide_dims.max(axis=1) <= self.max_image_dim_px)[0]
