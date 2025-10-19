@@ -33,7 +33,8 @@ One can also use pip to install directly from Github
 
     $ pip install git+https://github.com/MathOnco/valis.git
 
-.. _Prerequisites
+.. _Prerequisites:
+
 Prerequisites
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
