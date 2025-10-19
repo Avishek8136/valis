@@ -2634,6 +2634,14 @@ class Valis(object):
             else:
                 self.image_type = unique_img_types[0]
 
+        # Check if reference image was specified but failed to load
+        if self.reference_img_f is not None:
+            ref_slide = self.get_ref_slide()
+            if ref_slide is None:
+                msg = (f"Reference image '{self.reference_img_f}' failed to load or was not found in slide_dict. "
+                       f"Registration may fail or use a different reference.")
+                valtils.print_warning(msg, rgb=Fore.RED)
+
         self.check_img_max_dims()
 
     def check_img_max_dims(self):
@@ -2776,7 +2784,15 @@ class Valis(object):
         if processor_dict is None:
             named_processing_dict = {}
         else:
-            named_processing_dict = {self.get_slide(f).name: processor_dict[f] for f in processor_dict.keys()}
+            # Filter out slides that failed to load (get_slide returns None)
+            named_processing_dict = {}
+            for f in processor_dict.keys():
+                slide = self.get_slide(f)
+                if slide is not None:
+                    named_processing_dict[slide.name] = processor_dict[f]
+                else:
+                    msg = f"Skipping processor for '{f}' because slide failed to load"
+                    valtils.print_warning(msg)
 
         for i, slide_obj in enumerate(self.slide_dict.values()):
 
@@ -4932,6 +4948,11 @@ class Valis(object):
             self.size -= 1
 
         ref_slide = self.get_ref_slide()
+        if ref_slide is None:
+            msg = "Reference slide failed to load. Cannot perform micro-registration."
+            valtils.print_warning(msg, rgb=Fore.RED)
+            return None, self.error_df
+        
         if mask is None:
             if ref_slide.non_rigid_reg_mask is not None:
                 mask = ref_slide.non_rigid_reg_mask.copy()
