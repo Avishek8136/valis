@@ -5240,10 +5240,25 @@ class Valis(object):
             if isinstance(colormap, str) and colormap == slide_io.CMAP_AUTO:
                 cmap_is_str = True
             else:
-                named_color_map = {self.get_slide(x).name:colormap[x] for x in colormap.keys()}
+                # Filter out slides that failed to load when creating named_color_map
+                named_color_map = {}
+                for x in colormap.keys():
+                    slide = self.get_slide(x)
+                    if slide is not None:
+                        named_color_map[slide.name] = colormap[x]
+                    else:
+                        msg = f"Skipping colormap for '{x}' because slide failed to load"
+                        valtils.print_warning(msg)
 
         for src_f in tqdm.tqdm(src_f_list, desc=SAVING_IMG_MSG, unit="image"):
             slide_obj = self.get_slide(src_f)
+            
+            # Skip slides that failed to load
+            if slide_obj is None:
+                msg = f"Skipping '{src_f}' in warp_and_save_slides because slide failed to load"
+                valtils.print_warning(msg, rgb=Fore.RED)
+                continue
+            
             slide_cmap = None
             is_rgb = slide_obj.reader.metadata.is_rgb
             if is_rgb:

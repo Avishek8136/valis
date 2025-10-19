@@ -30,6 +30,101 @@ class TestNoneSlideHandling:
             valis_obj.max_non_rigid_registration_dim_px = 1000
             return valis_obj
 
+    def test_warp_and_save_slides_with_none_slide(self, mock_valis, tmp_path):
+        """Test that warp_and_save_slides handles None slides gracefully"""
+        
+        # Setup: Mock a valid slide and a None slide
+        valid_slide = Mock()
+        valid_slide.name = 'valid_slide'
+        valid_slide.reader = Mock()
+        valid_slide.reader.metadata = Mock()
+        valid_slide.reader.metadata.is_rgb = True
+        valid_slide.warp_and_save_slide = Mock()
+        
+        mock_valis.slide_dict = {'valid_slide': valid_slide}
+        
+        # Mock get_slide to return valid slide or None
+        def mock_get_slide(src_f):
+            if 'valid' in src_f:
+                return valid_slide
+            return None
+        
+        mock_valis.get_slide = mock_get_slide
+        
+        # Mock get_sorted_img_f_list to return both valid and missing slides
+        mock_valis.get_sorted_img_f_list = lambda: ['valid_slide.tiff', 'missing_slide.tiff']
+        
+        # Create output directory
+        dst_dir = str(tmp_path / "output")
+        
+        with patch('valis.valtils.print_warning') as mock_warn, \
+             patch('valis.registration.tqdm') as mock_tqdm, \
+             patch('valis.registration.pathlib.Path.mkdir'):
+            mock_tqdm.tqdm = lambda x, **kwargs: x
+            
+            # Call warp_and_save_slides
+            mock_valis.warp_and_save_slides(dst_dir)
+            
+            # Should have warned about missing slide
+            assert mock_warn.called
+            warning_calls = [call[0][0] for call in mock_warn.call_args_list]
+            missing_warnings = [w for w in warning_calls if 'missing_slide.tiff' in w and 'failed to load' in w]
+            assert len(missing_warnings) > 0
+            
+            # Should have called warp_and_save_slide for valid slide only
+            assert valid_slide.warp_and_save_slide.called
+            assert valid_slide.warp_and_save_slide.call_count == 1
+
+    def test_warp_and_save_slides_with_colormap_and_none_slide(self, mock_valis, tmp_path):
+        """Test that warp_and_save_slides handles None slides when creating colormap"""
+        
+        # Setup: Mock a valid slide
+        valid_slide = Mock()
+        valid_slide.name = 'valid_slide'
+        valid_slide.reader = Mock()
+        valid_slide.reader.metadata = Mock()
+        valid_slide.reader.metadata.is_rgb = False
+        valid_slide.reader.metadata.channel_names = ['channel1']
+        valid_slide.reader.metadata.n_channels = 1
+        valid_slide.warp_and_save_slide = Mock()
+        
+        mock_valis.slide_dict = {'valid_slide': valid_slide}
+        
+        # Mock get_slide
+        def mock_get_slide(src_f):
+            if 'valid' in src_f:
+                return valid_slide
+            return None
+        
+        mock_valis.get_slide = mock_get_slide
+        mock_valis.get_sorted_img_f_list = lambda: ['valid_slide.tiff']
+        
+        # Create a colormap that includes a None slide
+        colormap = {
+            'valid_slide.tiff': [[255, 0, 0]],
+            'missing_slide.tiff': [[0, 255, 0]]
+        }
+        
+        dst_dir = str(tmp_path / "output")
+        
+        with patch('valis.valtils.print_warning') as mock_warn, \
+             patch('valis.registration.tqdm') as mock_tqdm, \
+             patch('valis.registration.pathlib.Path.mkdir'), \
+             patch('valis.registration.slide_io.check_channel_names') as mock_check_names, \
+             patch('valis.registration.slide_io.check_colormap') as mock_check_cmap:
+            mock_tqdm.tqdm = lambda x, **kwargs: x
+            mock_check_names.return_value = ['channel1']
+            mock_check_cmap.return_value = [[255, 0, 0]]
+            
+            # Call warp_and_save_slides with colormap
+            mock_valis.warp_and_save_slides(dst_dir, colormap=colormap)
+            
+            # Should have warned about missing slide in colormap
+            assert mock_warn.called
+            warning_calls = [call[0][0] for call in mock_warn.call_args_list]
+            colormap_warnings = [w for w in warning_calls if 'missing_slide.tiff' in w and 'colormap' in w]
+            assert len(colormap_warnings) > 0
+
     def test_create_img_processor_dict_with_none_slide(self, mock_valis):
         """Test that create_img_processor_dict handles None slides gracefully"""
         
