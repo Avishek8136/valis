@@ -165,20 +165,40 @@ Examples:
     start_time = time.time()
     
     # Create VALIS registrar with GPU-optimized settings
+    # This includes:
+    # - Rigid registration: Uses serial rigid registration by default (align_to_reference=True)
+    # - Micro-rigid registration: Refines rigid alignment using higher resolution images
+    # - Non-rigid registration: Uses RAFTWarper for GPU-accelerated deformable registration
+    # All GPU-capable components will automatically use GPU if available
     registrar = registration.Valis(
         src_dir=src_dir,
         dst_dir=args.output,
         reference_img_f=reference_img,
-        align_to_reference=True,
+        align_to_reference=True,  # Enable serial rigid registration towards reference
+        do_rigid=True,  # Enable rigid registration
         # Use GPU-accelerated feature detector and matcher (default)
-        # GPU will be used automatically if available
+        # GPU will be used automatically if available for feature detection/matching
         max_processed_image_dim_px=2048,  # Higher resolution for better accuracy with GPU
         max_non_rigid_registration_dim_px=2048,  # Higher resolution for non-rigid registration
+        # Enable micro-rigid registration for refined alignment
+        micro_rigid_registrar_cls=registration.micro_rigid_registrar.MicroRigidRegistrar,
+        micro_rigid_registrar_params={
+            'scale': 0.5**3,  # Use higher resolution (1/8 scale) for micro-rigid
+            'tile_wh': 512,   # Tile size for processing
+        },
+        # Use RAFTWarper for GPU-accelerated non-rigid registration
+        # RAFTWarper automatically uses GPU if available via PyTorch CUDA
+        non_rigid_registrar_cls=registration.non_rigid_registrars.RAFTWarper,
+        non_rigid_reg_params={},  # Use default parameters (GPU auto-detected)
     )
     
     # Perform registration with custom processor for CD8
     print("Starting registration process...")
     print("This may take several minutes depending on image size and GPU availability...")
+    print("Registration pipeline:")
+    print("  1. Serial rigid registration (towards reference)")
+    print("  2. Micro-rigid registration (higher resolution refinement)")
+    print("  3. Serial non-rigid registration (GPU-accelerated with RAFT)")
     
     rigid_registrar, non_rigid_registrar, error_df = registrar.register(
         processor_dict=processor_dict
@@ -192,6 +212,27 @@ Examples:
     if error_df is not None and not error_df.empty:
         print("\nRegistration Error Statistics:")
         print(error_df.to_string())
+    
+    # Step 4b: Perform micro non-rigid registration for better alignment of micro-features
+    print("\n" + "="*70)
+    print("Step 4b: Performing micro non-rigid registration")
+    print("="*70)
+    print("Using higher resolution images for better alignment of micro-features...")
+    
+    micro_start_time = time.time()
+    
+    # Perform micro-registration using higher resolution images
+    # This further improves alignment for fine details
+    registrar.register_micro(
+        processor_dict=processor_dict,
+        max_non_rigid_registration_dim_px=4096,  # Use even higher resolution
+        non_rigid_registrar_cls=registration.non_rigid_registrars.RAFTWarper,
+        non_rigid_reg_params={},  # GPU auto-detected
+    )
+    
+    micro_time = time.time() - micro_start_time
+    
+    print(f"✓ Micro non-rigid registration completed in {micro_time/60:.2f} minutes")
     
     # Step 5: Warp and save registered slides
     print("\n" + "="*70)
@@ -214,7 +255,16 @@ Examples:
     print(f"\nResults saved to:")
     print(f"  Registration data: {args.output}")
     print(f"  Registered slides: {args.registered_output}")
-    print(f"\nTotal time: {(registration_time + warp_time)/60:.2f} minutes")
+    print(f"\nRegistration Times:")
+    print(f"  Rigid + Non-rigid: {registration_time/60:.2f} minutes")
+    print(f"  Micro non-rigid: {micro_time/60:.2f} minutes")
+    print(f"  Warping & saving: {warp_time/60:.2f} minutes")
+    print(f"  Total: {(registration_time + micro_time + warp_time)/60:.2f} minutes")
+    print(f"\nRegistration Pipeline Completed:")
+    print(f"  ✓ Serial rigid registration")
+    print(f"  ✓ Micro-rigid registration") 
+    print(f"  ✓ Serial non-rigid registration (GPU-accelerated)")
+    print(f"  ✓ Micro non-rigid registration (GPU-accelerated)")
     
     # Cleanup: Shutdown JVM
     print("\nCleaning up...")

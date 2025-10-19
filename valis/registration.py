@@ -2492,6 +2492,9 @@ class Valis(object):
 
         for i, slide_f in enumerate(self.original_img_list):
             slide_name = valtils.get_name(slide_f)
+            slide_reader_cls = None
+            slide_reader = None
+            
             if slide_name not in named_reader_dict:
                 if default_reader is None:
                     try:
@@ -2500,6 +2503,7 @@ class Valis(object):
                         traceback_msg = traceback.format_exc()
                         msg = f"Attempting to get reader for {slide_f} created the following error:\n{e}"
                         valtils.print_warning(msg, rgb=Fore.RED, traceback_msg=traceback_msg)
+                        continue  # Skip this slide if we can't get a reader
                 else:
                     slide_reader_cls = default_reader
 
@@ -2521,14 +2525,19 @@ class Valis(object):
                     # Provided reader, but no kwargs
                     slide_reader = slide_reader_info
                     slide_reader_kwargs = {}
-            try:
-                slide_reader = slide_reader_cls(src_f=slide_f, **slide_reader_kwargs)
-            except Exception as e:
-                traceback_msg = traceback.format_exc()
-                msg = f"Attempting to read {slide_f} created the following error:\n{e}"
-                valtils.print_warning(msg, rgb=Fore.RED, traceback_msg=traceback_msg)
+            
+            # Only try to create slide_reader if we don't already have one and we have a class
+            if slide_reader is None and slide_reader_cls is not None:
+                try:
+                    slide_reader = slide_reader_cls(src_f=slide_f, **slide_reader_kwargs)
+                except Exception as e:
+                    traceback_msg = traceback.format_exc()
+                    msg = f"Attempting to read {slide_f} created the following error:\n{e}"
+                    valtils.print_warning(msg, rgb=Fore.RED, traceback_msg=traceback_msg)
+                    continue  # Skip this slide if we can't create a reader
 
-            named_reader_dict[slide_name] = slide_reader
+            if slide_reader is not None:
+                named_reader_dict[slide_name] = slide_reader
 
         return named_reader_dict
 
