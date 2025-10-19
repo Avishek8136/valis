@@ -2417,6 +2417,10 @@ class Valis(object):
             valtils.print_warning(msg, rgb=Fore.RED)
             slide_obj = None
 
+        else:
+            # No match found for src_f
+            slide_obj = None
+
         return slide_obj
 
     def get_ref_slide(self):
