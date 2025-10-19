@@ -71,6 +71,127 @@ The transformations found by VALIS can then be used to warp the full resolution 
 
 In addition to registering images, VALIS provides tools to read slides using Bio-Formats and OpenSlide, which can be read at multiple resolutions and converted to numpy arrays or pyvips.Image objects. One can also slice regions of interest from these slides and warp annotated images. VALIS also provides functions to convert slides to the ome.tiff format, preserving the original metadata. Please see examples and documentation for more details.
 
+Installation
+------------
+
+**Important:** VALIS requires several system-level dependencies to be installed before you can install it with pip.
+
+System Dependencies (Required)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before installing VALIS, you must install these system dependencies:
+
+**1. Java Development Kit (JDK)**
+
+VALIS uses Bio-Formats to read slide images, which requires Java.
+
+* Download and install JDK from `Oracle <http://www.oracle.com/technetwork/java/javase/downloads/index.html>`_ or use OpenJDK
+* Set the JAVA_HOME environment variable:
+
+  .. code-block:: bash
+
+      export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64  # Linux example
+      # Or: export JAVA_HOME=/usr/libexec/java_home  # macOS example
+
+**2. Maven**
+
+Maven is required for Bio-Formats support.
+
+* Install from `Apache Maven <https://maven.apache.org/index.html>`_
+
+**3. libvips**
+
+VALIS uses pyvips for image processing, which requires the libvips library.
+
+.. important::
+
+    **If you skip this step, you will get an error like:** ``fatal error: glib.h: No such file or directory``
+
+* **Ubuntu/Debian:**
+
+  .. code-block:: bash
+
+      sudo apt-get update
+      sudo apt-get install --no-install-recommends libvips libvips-dev
+
+* **macOS:**
+
+  .. code-block:: bash
+
+      brew install vips
+
+* **Windows:**
+
+  Download pre-built binaries from `libvips releases <https://github.com/libvips/libvips/releases>`_
+
+  See `pyvips installation notes <https://github.com/libvips/pyvips#install>`_ for detailed Windows instructions.
+
+* **Conda (all platforms):**
+
+  .. code-block:: bash
+
+      conda install -c conda-forge libvips
+
+**4. OpenSlide (Optional but recommended)**
+
+OpenSlide is needed for some slide formats (.vmu, .mrxs, .svslide).
+
+* **Ubuntu/Debian:**
+
+  .. code-block:: bash
+
+      sudo apt-get install openslide-tools libopenslide-dev
+
+* **macOS:**
+
+  .. code-block:: bash
+
+      brew install openslide
+
+* **Windows:** Download from `OpenSlide <https://openslide.org/download/>`_
+
+Installing VALIS
+~~~~~~~~~~~~~~~~~
+
+After installing the system dependencies above, install VALIS using pip:
+
+.. code-block:: bash
+
+    pip install valis-wsi
+
+Or install from source in development mode:
+
+.. code-block:: bash
+
+    git clone https://github.com/MathOnco/valis.git
+    cd valis
+    pip install -e .
+
+Alternative Installation Methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Docker (Recommended for easy setup)**
+
+The easiest way to use VALIS with all dependencies pre-installed:
+
+.. code-block:: bash
+
+    docker pull cdgatenbee/valis-wsi
+    docker run -v "$HOME:$HOME" cdgatenbee/valis-wsi python3 /path/to/your_script.py
+
+**Conda Environment**
+
+Using conda can simplify system dependency management:
+
+.. code-block:: bash
+
+    conda create -n valis python=3.9
+    conda activate valis
+    conda install -c conda-forge libvips
+    pip install valis-wsi
+
+For complete installation instructions, troubleshooting, and optional dependencies like SimpleElastix, see the `full installation guide <https://valis.readthedocs.io/en/latest/installation.html>`_.
+
 GPU Acceleration
 ----------------
 

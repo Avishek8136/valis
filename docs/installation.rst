@@ -65,7 +65,44 @@ VALIS uses Bioformats to read many slide formats. Bioformats is written in Java,
 
        OpenSlide requires `pixman <http://www.pixman.org>`_, which must be version 0.40.0. If pixman is a different version, then the slides may be distorted when reading from any pyramid level other than 0.
 
-#. VALIS uses `pyvips <https://github.com/libvips/pyvips>`_ to warp and save the whole slide images (WSI) as ome.tiffs. Pyvips requires `libvips <https://www.libvips.org/>`_ (not a Python package) to be on your library search path, and so libvips must be installed separately. See the `pyvips installation notes <https://github.com/libvips/pyvips/blob/master/README.rst#non-conda-install>`_ for instructions on how to do this for your operating system. If you already have libvips installed, please make sure it's version is >= 8.11.
+#. VALIS uses `pyvips <https://github.com/libvips/pyvips>`_ to warp and save the whole slide images (WSI) as ome.tiffs. Pyvips requires `libvips <https://www.libvips.org/>`_ (not a Python package) to be on your library search path, and so libvips must be installed separately.
+
+   .. important::
+
+       **Common Installation Error:** If you try to install VALIS without libvips, you will get an error like:
+       
+       ``fatal error: glib.h: No such file or directory``
+       
+       This means libvips and its dependencies (including glib) are not installed.
+
+   **Installing libvips:**
+
+   * **Ubuntu/Debian:**
+
+     .. code-block:: bash
+
+         sudo apt-get update
+         sudo apt-get install --no-install-recommends libvips libvips-dev
+
+   * **macOS:**
+
+     .. code-block:: bash
+
+         brew install vips
+
+   * **Windows:**
+
+     Download pre-built binaries from `libvips releases <https://github.com/libvips/libvips/releases>`_
+     
+     See the `pyvips installation notes <https://github.com/libvips/pyvips#install>`_ for detailed Windows instructions.
+
+   * **Conda (all platforms):**
+
+     .. code-block:: bash
+
+         conda install -c conda-forge libvips
+
+   If you already have libvips installed, please make sure its version is >= 8.11.
 
 Install
 ~~~~~~~
@@ -97,3 +134,91 @@ To install SimpleElastix, you should probably uninstall the current version of S
 From source
 ============
 One will need to install and use `Poetry <https://python-poetry.org/>`_ to install VALIS from the source code. As Poetry only installs the Python dependencies, one will also need to follow the steps above to install the JDK, Maven, libvips, and openslide. Note that the poetry lock file is included in the repository, which can be deleted before installation if so desired.
+
+Troubleshooting
+===============
+
+pyvips build errors
+~~~~~~~~~~~~~~~~~~~
+
+**Error:** ``fatal error: glib.h: No such file or directory``
+
+**Solution:** This error occurs when trying to install pyvips without having libvips and its dependencies installed on your system. You need to install libvips before installing VALIS:
+
+* **Ubuntu/Debian:**
+
+  .. code-block:: bash
+
+      sudo apt-get update
+      sudo apt-get install --no-install-recommends libvips libvips-dev
+
+* **macOS:**
+
+  .. code-block:: bash
+
+      brew install vips
+
+* **Conda:**
+
+  .. code-block:: bash
+
+      conda install -c conda-forge libvips
+
+After installing libvips, try installing VALIS again.
+
+**Error:** ``error: command 'gcc' failed with exit status 1`` when building pyvips
+
+**Solution:** You may be missing build tools or development headers. On Ubuntu/Debian:
+
+.. code-block:: bash
+
+    sudo apt-get install build-essential python3-dev
+
+Java/Maven errors
+~~~~~~~~~~~~~~~~~
+
+**Error:** ``No Java runtime present`` or ``JAVA_HOME not set``
+
+**Solution:** Install JDK and set JAVA_HOME:
+
+.. code-block:: bash
+
+    # Ubuntu/Debian
+    sudo apt-get install openjdk-11-jdk
+    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+    
+    # macOS
+    brew install openjdk@11
+    export JAVA_HOME=$(/usr/libexec/java_home -v 11)
+
+Add the export command to your shell profile (e.g., ``~/.bashrc`` or ``~/.zshrc``) to make it permanent.
+
+Memory errors
+~~~~~~~~~~~~~
+
+**Error:** ``MemoryError`` or system freezing during registration
+
+**Solution:** WSI registration can be memory-intensive. Try:
+
+1. Use Docker with increased memory limits:
+
+   .. code-block:: bash
+
+       docker run --memory=20g -v "$HOME:$HOME" cdgatenbee/valis-wsi python3 your_script.py
+
+2. Register at lower resolutions by adjusting parameters in your registration script.
+
+3. Close other applications to free up memory.
+
+OpenSlide errors
+~~~~~~~~~~~~~~~~
+
+**Error:** Distorted images when reading from pyramid levels
+
+**Solution:** This is often caused by an incompatible pixman version. OpenSlide requires pixman 0.40.0. Check your version:
+
+.. code-block:: bash
+
+    pkg-config --modversion pixman-1
+
+If it's not 0.40.0, you may need to compile pixman from source or use the Docker image.
