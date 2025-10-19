@@ -44,6 +44,7 @@ from . import slide_io
 from . import viz
 from . import warp_tools
 from . import serial_non_rigid
+from . import micro_rigid_registrar
 
 pyvips.cache_set_max(0)
 
